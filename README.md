@@ -147,7 +147,7 @@ The following example shows the compression size and compression duration (compr
 ; gzip level 1:
 ;              Execution time mean :  10.435763 ms
 
-(let [xs (vec (interleave (repeat 50000 (- Long/MAX_VALUE 100000)) (repeatedly 50000 #(long (* Long/MAX_VALUE (rand))))))
+(let [xs (vec (range (- Long/MAX_VALUE 100000) Long/MAX_VALUE))
       uncompressed (quick-byte-freeze xs)
       snappy (quick-byte-freeze xs, :compressed true)
       gzip-9 (quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip)
