@@ -5,6 +5,10 @@ It is built on top of the [kryo](http://github.com/EsotericSoftware/kryo) librar
 The main goal of the library is to provide an easy method to binary serialization of Clojure data to byte arrays and files.
 The general usage paradigm of the library is "*write once, read often*", i.e. there are no functions to modify any previously written file.
 
+## Project Maturity
+
+This library has been used in internal projects for more than a year. API changes are not very likely (except for additions).
+
 ## Install
 
 Add the following to your dependency vector in your project.clj:
@@ -132,11 +136,11 @@ The following example shows the compression size and compression duration (compr
 (let [xs (vec (range (- Long/MAX_VALUE 100000) Long/MAX_VALUE))]
   (println "uncompressed:")
   (bench (quick-byte-freeze xs))
-  (println "snappy")
+  (println "snappy:")
   (bench (quick-byte-freeze xs, :compressed true))
-  (println "gzip level 9")
+  (println "gzip level 9:")
   (bench (quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip))
-  (println "gzip level 1")
+  (println "gzip level 1:")
   (bench (quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip, :compression-level 1)))
 ; uncompressed:
 ;              Execution time mean :   3.973379 ms
@@ -154,11 +158,11 @@ The following example shows the compression size and compression duration (compr
       gzip-1 (quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip, :compression-level 1)]
   (println "uncompressed:")
   (bench (quick-byte-defrost uncompressed))
-  (println "snappy")
+  (println "snappy:")
   (bench (quick-byte-defrost snappy, :compressed true))
-  (println "gzip level 9")
+  (println "gzip level 9:")
   (bench (quick-byte-defrost gzip-9, :compressed true, :compression-algorithm :gzip))
-  (println "gzip level 1")
+  (println "gzip level 1:")
   (bench (quick-byte-defrost gzip-1, :compressed true, :compression-algorithm :gzip, :compression-level 1)))
 ; uncompressed:
 ;              Execution time mean : 3.859958 ms
