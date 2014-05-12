@@ -120,28 +120,31 @@ with respect to speed and compressed size compared to the built-in GZIP compress
 The following example shows the compression size and compression duration (compress and decompress) tradeoff.
 ```clojure
 (let [xs (vec (range (- Long/MAX_VALUE 100000) Long/MAX_VALUE))
-      uncompressed (quick-byte-freeze xs)
-      snappy (quick-byte-freeze xs, :compressed true)
-      gzip-9 (quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip)]
+      uncompressed (qf/quick-byte-freeze xs)
+      snappy (qf/quick-byte-freeze xs, :compressed true)
+      gzip-9 (qf/quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip)
+      gzip-1 (qf/quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip, :compression-level 1)]
   (println "uncompressed size:" (count uncompressed))
   (println "snappy size:" (count snappy))
-  (println "gzip level 9 size:" (count gzip-9)))
+  (println "gzip level 9 size:" (count gzip-9))
+  (println "gzip level 1 size:" (count gzip-1)))
 ; uncompressed size: 1000006
 ; snappy size: 399531
 ; gzip level 9 size: 139919
+; gzip level 1 size: 140282
 ; => nil
 
 (use 'criterium.core)
 
 (let [xs (vec (range (- Long/MAX_VALUE 100000) Long/MAX_VALUE))]
   (println "uncompressed:")
-  (bench (quick-byte-freeze xs))
+  (bench (qf/quick-byte-freeze xs))
   (println "snappy:")
-  (bench (quick-byte-freeze xs, :compressed true))
+  (bench (qf/quick-byte-freeze xs, :compressed true))
   (println "gzip level 9:")
-  (bench (quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip))
+  (bench (qf/quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip))
   (println "gzip level 1:")
-  (bench (quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip, :compression-level 1)))
+  (bench (qf/quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip, :compression-level 1)))
 ; uncompressed:
 ;              Execution time mean :   3.973379 ms
 ; snappy:
@@ -152,18 +155,18 @@ The following example shows the compression size and compression duration (compr
 ;              Execution time mean :  10.435763 ms
 
 (let [xs (vec (range (- Long/MAX_VALUE 100000) Long/MAX_VALUE))
-      uncompressed (quick-byte-freeze xs)
-      snappy (quick-byte-freeze xs, :compressed true)
-      gzip-9 (quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip)
-      gzip-1 (quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip, :compression-level 1)]
+      uncompressed (qf/quick-byte-freeze xs)
+      snappy (qf/quick-byte-freeze xs, :compressed true)
+      gzip-9 (qf/quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip)
+      gzip-1 (qf/quick-byte-freeze xs, :compressed true, :compression-algorithm :gzip, :compression-level 1)]
   (println "uncompressed:")
-  (bench (quick-byte-defrost uncompressed))
+  (bench (qf/quick-byte-defrost uncompressed))
   (println "snappy:")
-  (bench (quick-byte-defrost snappy, :compressed true))
+  (bench (qf/quick-byte-defrost snappy, :compressed true))
   (println "gzip level 9:")
-  (bench (quick-byte-defrost gzip-9, :compressed true, :compression-algorithm :gzip))
+  (bench (qf/quick-byte-defrost gzip-9, :compressed true, :compression-algorithm :gzip))
   (println "gzip level 1:")
-  (bench (quick-byte-defrost gzip-1, :compressed true, :compression-algorithm :gzip, :compression-level 1)))
+  (bench (qf/quick-byte-defrost gzip-1, :compressed true, :compression-algorithm :gzip, :compression-level 1)))
 ; uncompressed:
 ;              Execution time mean : 3.859958 ms
 ; snappy:
