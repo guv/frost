@@ -58,10 +58,15 @@
   "Reads all objects from the file with the given file description. Returns a collection of those objects.
   The file description can be anything that clojure.java.io/input-stream can handle.
   <process-fn>Instead of the read objects the result of the function applications to the objects is returned.</>
-  <filter-pred>Function that decides whether an object is returned (including process-fn application) or not.</>"
-  [filedesc | {process-fn identity, filter-pred (constantly true)} :as options]
-  (with-open [fd (f/create-defroster filedesc, options)]
-    (f/defrost-coll fd, process-fn, filter-pred)))
+  <filter-pred>Function that decides whether an object is returned (including process-fn application) or not.</>
+  <max-elements>Limit the number of elements in the result collection</>"
+  [filedesc | {process-fn identity, filter-pred (constantly true), max-elements nil} :as options]
+  ; :filter-pred nil is equivalent to :filter-pred (constantly true)
+  (let [filter-pred (or filter-pred (constantly true))]
+    (with-open [fd (f/create-defroster filedesc, options)]
+      (if max-elements
+        (f/defrost-coll fd, process-fn, filter-pred, max-elements)
+        (f/defrost-coll fd, process-fn, filter-pred)))))
 
 
 (defn+opts quick-file-defrost-coll-chunked

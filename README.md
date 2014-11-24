@@ -14,7 +14,7 @@ This library has been used in internal projects for more than a year. API change
 Add the following to your dependency vector in your project.clj:
 
 ```clojure
-[frost "0.4.0"]
+[frost "0.4.1"]
 ```
 
 Latest on [clojars.org](http://clojars.org):

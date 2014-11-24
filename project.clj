@@ -1,10 +1,12 @@
 (defn get-version
   []
-  (let [version-fn (try
-                     (load-file "src/frost/version.clj")
+  (let [version-file "src/frost/version.clj"
+        version-fn (try
+                     ; works in leiningen
+                     (load-file version-file)
                      (catch java.io.FileNotFoundException e
-                       ; Fix for CCW working directory bug.
-                       (load-file "workspace/frost/src/frost/version.clj")))]
+                       ; workaround for CCW (version number is not needed anyway)
+                       (constantly "0.8.15-UNDEFINED")))]
     (version-fn)))
 
 
@@ -22,9 +24,9 @@
                  ; alternative fast compression
                  [org.xerial.snappy/snappy-java "1.0.5"]
                  ; gui for analysis namespace
-                 [clj-gui "0.3.3"]]
+                 [clj-gui "0.3.4"]]
   :profiles
-  {:dev {:dependencies [[clj-debug "0.7.3"]
+  {:dev {:dependencies [[clj-debug "0.7.4"]
                         [midje "1.6.3"]
                         [org.clojure/test.check "0.5.7"]]}
    :reflection {:warn-on-reflection true}}

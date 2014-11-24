@@ -32,7 +32,7 @@
 
 (defprotocol IDefrost
   (defrost [this] [this, f] "Deserialize the next object.")
-  (defrost-coll [this] [this, f, filter-pred] "Deserialize all remaining objects and return them as a sequential collection.")
+  (defrost-coll [this] [this, f, filter-pred] [this, f, filter-pred, max-elements] "Deserialize all remaining objects and return them as a sequential collection.")
   (defrost-coll-chunked [this, chunk-size] [this, chunk-size, f, filter-pred] "Deserialize all remaining objects and return them as a sequential collection. Objects are processed in chunks.")
   (defrost-iterate [this, f, filter-pred] "Apply a function to all remaining deserialized objects."))
 
@@ -177,6 +177,17 @@
                    result))
           (persistent! result)))))
   
+  (defrost-coll [this, f, filter-pred, max-elements]
+    (conditional-wrap locking? (locking this %)
+      (loop [element-count 0, result (transient [])]
+        (if (< element-count max-elements)
+          (if-let [obj (try (.readClassAndObject kryo, in) (catch KryoException e nil))]
+            (if (filter-pred obj)
+              (recur (unchecked-inc element-count), (conj! result (f obj)))       
+              (recur element-count, result))            
+            (persistent! result))
+          (persistent! result)))))
+  
   (defrost-coll-chunked [this, chunk-size]
     (defrost-coll-chunked this, chunk-size, identity, (constantly true)))
   
@@ -227,3 +238,9 @@
                   ; before 0.3.0 there was no frost-version and no compression-algorithm written in the file header and only :gzip was supported
                   (and compressed (not frost-version)) (compress/wrap-compression :compression-algorithm :gzip options))]
     (Defroster. kryo, (Input. ^InputStream file-in), filedesc, file-info, (dissoc header :file-info), locking)))
+
+
+(defn close
+  "Closes the given instance of java.io.Closeable."
+  [^Closeable x]
+  (.close x))
