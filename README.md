@@ -19,7 +19,7 @@ Add the following to your dependency vector in your project.clj:
 
 Latest on [clojars.org](http://clojars.org):
 
-![Version](https://clojars.org/frost/frost/latest-version.svg)
+![Version](https://clojars.org/frost/latest-version.svg)
 
 ## Quickstart
 
