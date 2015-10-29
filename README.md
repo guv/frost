@@ -14,7 +14,7 @@ This library has been used in internal projects for more than a year. API change
 Add the following to your dependency vector in your project.clj:
 
 ```clojure
-[frost "0.4.1"]
+[frost "0.5.0"]
 ```
 
 Latest on [clojars.org](http://clojars.org):
@@ -187,6 +187,6 @@ These types are the underlying implementation of the functions in the namespace 
 
 ## License
 
-Copyright © 2014 Gunnar Völkel
+Copyright © 2014-2015 Gunnar Völkel
 
 Distributed under the Eclipse Public License.

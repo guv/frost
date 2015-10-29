@@ -11,7 +11,8 @@
     [clojure.options :refer [defn+opts]]
     (frost
       [byte-freezer :as b]
-      [file-freezer :as f])))
+      [file-freezer :as f]
+      [stream-freezer :as s])))
 
 
 
@@ -27,6 +28,21 @@
   [bytes | :as options]
   (let [bf (b/create-byte-freezer options)]
     (b/defrost bf bytes)))
+
+
+
+(defn+opts quick-stream-freeze
+  "Serializes the given object to the given output stream."
+  [output-stream, obj | :as options]
+  (let [sf (s/create-freezer output-stream, options)]
+    (s/freeze sf obj)))
+
+
+(defn+opts quick-stream-defrost
+  "Reads an object from the given input stream."
+  [input-stream | :as options]
+  (let [sd (s/create-defroster input-stream, options)]
+    (s/defrost sd)))
 
 
 
@@ -84,9 +100,11 @@
   "Applies the given function to all deserialized objects in the file with the given file description.
   The file description can be anything that clojure.java.io/input-stream can handle.
   <filter-pred>Function that decides whether the given function is applied to an object.</>"
-  [filedesc, process-fn | {filter-pred (constantly true)} :as options]
+  [filedesc, process-fn | {filter-pred (constantly true), max-elements nil} :as options]
   (with-open [fd (f/create-defroster filedesc, options)]
-    (f/defrost-iterate fd, process-fn, filter-pred)))
+    (if max-elements
+      (f/defrost-iterate fd, process-fn, filter-pred, max-elements)
+      (f/defrost-iterate fd, process-fn, filter-pred))))
 
 
 (defn+opts quick-file-header

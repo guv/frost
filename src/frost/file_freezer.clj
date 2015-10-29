@@ -34,7 +34,7 @@
   (defrost [this] [this, f] "Deserialize the next object.")
   (defrost-coll [this] [this, f, filter-pred] [this, f, filter-pred, max-elements] "Deserialize all remaining objects and return them as a sequential collection.")
   (defrost-coll-chunked [this, chunk-size] [this, chunk-size, f, filter-pred] "Deserialize all remaining objects and return them as a sequential collection. Objects are processed in chunks.")
-  (defrost-iterate [this, f, filter-pred] "Apply a function to all remaining deserialized objects."))
+  (defrost-iterate [this, f, filter-pred] [this, f, filter-pred, max-elements] "Apply a function to all remaining deserialized objects."))
 
 
 
@@ -99,36 +99,14 @@
     (bytes->header header-bytes)))
 
 
-
-(defn+opts create-specified-kryo
-  [additional-serializers | :as options]
-  (let [{:keys [registration-required, default-serializers, persistent-metadata]} options,
-        ; create kryo
-        kryo (kryo/create-kryo registration-required),
-        ; register default serializers if specified
-        kryo (if default-serializers (kryo/default-serializers kryo :persistent-metadata persistent-metadata, options) kryo),
-        ; register additional serializers if specified
-        kryo (if additional-serializers (kryo/register-serializers kryo, additional-serializers, options) kryo)]
-    kryo))
-
-
 (defn+opts ^Freezer create-freezer
   "Creates a file freezer for the given filename to serialize data to this file.
   The file freezer can use compression. The file freezer can be created in a thread-safe or non-thread-safe mode.
   <compressed>Specifies whether compression of the data is used.</>
-  <no-wrap>For compression algorithm :gzip, set to true for GZIP compatible compression</>
-  <compression-level>For compression algorithm :gzip, range 0,1-9 (no compression, best speed - best compression)</>
-  <compression-algorithm>Specifies the compression algorithm to use. Snappy is default since it is pretty fast when reading and writing.</>
-  <registration-required>Determines whether each class of an object to be serialized needs to be registered.</>
-  <default-serializers>Specifies whether the default serializers for Clojure and Java data are used. You usually want these.</>
-  <persistent-metadata>Specifies whether metadata of Clojure data is stored as well.</>
-  <additional-serializers>Can be used to specify a list of additional serializers. Format per class is [class serializer id?].</>
   <file-info>Specifies addition information about the file that is stored in the header of the file.</>
   <locking>Determines whether locking should be use to make the file freezer thread-safe.</>
   "
-  [filename | {compressed true, no-wrap true, compression-level (choice 9 0 1 2 3 4 5 6 7 8), compression-algorithm (choice :snappy :gzip),
-               registration-required true, default-serializers true, persistent-metadata true, additional-serializers nil,
-               file-info nil, locking true} :as options]
+  [filename | {compressed true, file-info nil, locking true} :as options]
   (let [; create file
         file-out (FileOutputStream. ^String filename, false),
         ; header without metadata
@@ -141,7 +119,7 @@
         ; activate compression if specified
         file-out (cond-> file-out compressed (compress/wrap-compression options)),
         ; create kryo configured by given parameters
-        kryo (create-specified-kryo additional-serializers, options)]
+        kryo (kryo/create-specified-kryo options)]
       (Freezer. kryo, (Output. ^OutputStream file-out), filename, file-info, (dissoc header :file-info), locking)))
 
 
@@ -214,24 +192,33 @@
         (when-let [obj (try (.readClassAndObject kryo, in) (catch KryoException e nil))]
           (when (filter-pred obj)
             (f obj))
-          (recur))))))
+          (recur)))))
+  
+  (defrost-iterate [this, f, filter-pred, max-elements]
+    (conditional-wrap locking? (locking this %)
+      (loop [element-count 0]
+        (when (< element-count max-elements)
+          (when-let [obj (try (.readClassAndObject kryo, in) (catch KryoException e nil))]
+            (if (filter-pred obj)
+              (do
+                (f obj)
+                (recur (unchecked-inc element-count)))
+              (recur element-count))))))))
 
 
 (defn+opts ^Defroster create-defroster
   "Creates a file defroster for the given file description to read data from this file.
   The file description can be anything that clojure.java.io/input-stream can handle.
   The file defroster can be created in a thread-safe or non-thread-safe mode.
-  <additional-serializers>Needs to be used to specify a list of additional serializers that were used when the file was written. 
-  Format per class is [class serializer id?].</>
   <locking>Determines whether locking should be use to make the file freezer thread-safe.</>"
-  [filedesc | {additional-serializers nil, locking true}]
+  [filedesc | {locking true}]
   (let [; open file
         file-in (io/input-stream filedesc),        
         ; read header
         {:keys [compressed, file-info, frost-version] :as header} (read-header file-in),
         options (->option-map header),
         ; create kryo configured by given parameters
-        kryo (create-specified-kryo additional-serializers, options),
+        kryo (kryo/create-specified-kryo options),
         ; activate compression if specified
         file-in (cond-> file-in
                   (and compressed frost-version) (compress/wrap-compression options)

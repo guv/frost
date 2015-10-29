@@ -18,7 +18,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"
             :distribution :repo}
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [clojure.options "0.2.9"]
+                 [clojure.options "0.2.10"]
                  ; keep kryo 2.17 since there is a bug in the "reference instead of copy" implementation in later kryo (TODO: check most recent version)
                  [com.esotericsoftware.kryo/kryo "2.17"]
                  ; alternative fast compression
@@ -26,7 +26,7 @@
                  ; gui for analysis namespace
                  [clj-gui "0.3.4"]]
   :profiles
-  {:dev {:dependencies [[clj-debug "0.7.4"]
+  {:dev {:dependencies [[clj-debug "0.7.5"]
                         [midje "1.6.3"]
                         [org.clojure/test.check "0.5.7"]]}
    :reflection {:warn-on-reflection true}}

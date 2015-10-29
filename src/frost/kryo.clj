@@ -35,7 +35,7 @@
 
 
 
-(defn+opts ^Kryo default-serializers
+(defn+opts ^Kryo register-default-serializers
   "Register the defaul serializers for Java and Clojure data at the given kryo instance."
   [^Kryo kryo | :as options]
   (doto kryo
@@ -56,7 +56,20 @@
   <registration-required>Determines whether each class of an object to be serialized needs to be registered.</>
   <additional-serializers>Can be used to specify a list of additional serializers. Format per class is [class serializer id?].</>"
   [| {registration-required true, additional-serializers nil} :as options]
-  (let [reg (default-serializers (create-kryo registration-required), options)]
+  (let [reg (register-default-serializers (create-kryo registration-required), options)]
     (if additional-serializers
       (register-serializers reg, additional-serializers, options)
       reg)))
+
+
+(defn+opts create-specified-kryo
+  "Create a kryo instance via the specified options.
+  <registration-required>Determines whether each class of an object to be serialized needs to be registered.</>
+  <default-serializers>Specifies whether the default serializers for Clojure and Java data are used. You usually want these.</>
+  <additional-serializers>Can be used to specify a list of additional serializers. Format per class is [class serializer id?].</>"
+  [| {additional-serializers nil, registration-required true, default-serializers true} :as options]
+  (cond-> (create-kryo registration-required)
+    ; register default serializers if specified
+    default-serializers (register-default-serializers options)
+    ; register additional serializers if specified
+    additional-serializers (register-serializers additional-serializers, options)))
