@@ -27,3 +27,33 @@
   "Closes the given Closeable instance omitting reflection."
   [^Closeable closeable]
   (.close closeable))
+
+
+(defn illegal-argument
+  [fmt, & args]
+  (throw (IllegalArgumentException. (apply format fmt args))))
+
+
+(defn resolve-fn
+  "Retrieve function specified by the given symbol or string.
+  This function is only thread-safe when txload is enabled previously."
+  [symbol-str]
+  (if (or (string? symbol-str) (symbol? symbol-str))    
+    (let [symb (symbol symbol-str)
+          symb-ns (namespace symb)]
+      (if (nil? symb-ns) 
+        (illegal-argument "Function symbol \"%s\" must have a full qualified namespace!" symb)
+        (do
+          ; load namespace if needed - require is thread safe thanks to txload (must be enabled at startup)
+          (require (symbol symb-ns))
+          ; resolve symbol
+          (if-let [v (some-> symb resolve var-get)]
+	           v
+	           (illegal-argument "Function \"%s\" does not exist!" symb)))))
+    (cond
+      (ifn? symbol-str)
+        symbol-str
+      (nil? symbol-str)
+        (illegal-argument "No function identifier given (argument is nil)!")
+      :else
+        (illegal-argument "resolve-fn expects a symbol or a string"))))

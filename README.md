@@ -7,19 +7,19 @@ The general usage paradigm of the library is "*write once, read often*", i.e. th
 
 ## Project Maturity
 
-This library has been used in internal projects for more than a year. API changes are not very likely (except for additions).
+This library has been used in internal projects for several years. API changes are not very likely (except for additions).
 
 ## Install
 
 Add the following to your dependency vector in your project.clj:
 
 ```clojure
-[frost "0.5.0"]
+[frost "0.5.2"]
 ```
 
 Latest on [clojars.org](http://clojars.org):
 
-![Version](https://clojars.org/frost/latest-version.svg)
+![Version](https://clojars.org/frost/frost/latest-version.svg)
 
 ## Quickstart
 
@@ -187,6 +187,6 @@ These types are the underlying implementation of the functions in the namespace 
 
 ## License
 
-Copyright © 2014-2015 Gunnar Völkel
+Copyright © 2014-2016 Gunnar Völkel
 
 Distributed under the Eclipse Public License.

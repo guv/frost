@@ -27,9 +27,6 @@
                  [clj-gui "0.3.4"]]
   :profiles
   {:dev {:dependencies [[clj-debug "0.7.5"]
-                        [midje "1.6.3"]
-                        [org.clojure/test.check "0.5.7"]]}
+                        [org.clojure/test.check "0.6.2"]]}
    :reflection {:warn-on-reflection true}}
-  
-  :source-paths ["src"]
 )

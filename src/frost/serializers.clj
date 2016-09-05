@@ -37,7 +37,8 @@
       DefaultSerializers$BigDecimalSerializer)
     (java.nio
       ByteBuffer
-      DoubleBuffer)))
+      DoubleBuffer)
+    (java.lang.reflect Array)))
 
 
 
@@ -214,6 +215,117 @@
         (UUID. most, least)))))
 
 
+(defn write-array2d
+  [^Serializer array-serializer, ^Kryo kryo, ^Output out, ^objects a]
+  (let [n (alength a)]
+    (.writeInt out, n)
+    (loop [i 0]
+      (when (< i n)
+        (.write array-serializer kryo, out, (aget a i))
+        (recur (unchecked-inc i))))))
+
+
+(defn read-array2d
+  [^Serializer array-serializer, ^Class element-array-class, ^Kryo kryo, ^Input in]
+  (let [n (.readInt in),
+        ^objects a (make-array element-array-class n)]
+    (loop [i 0]
+      (when (< i n)
+        (let [a_i (.read array-serializer kryo, in, nil)]
+          (aset a i a_i)
+          (recur (unchecked-inc i)))))
+    a))
+
+
+(def ^Serializer double2d-serializer
+  (let [array-serializer (new DefaultArraySerializers$DoubleArraySerializer),
+        element-array-class (Class/forName "[D")]
+    (serializer
+      (write [^Kryo kryo, ^Output out, a]
+        (write-array2d array-serializer, kryo, out, a))
+      (read [^Kryo kryo, ^Input in, clazz]
+        (read-array2d array-serializer, element-array-class, kryo, in)))))
+
+
+(def ^Serializer float2d-serializer
+  (let [array-serializer (new DefaultArraySerializers$FloatArraySerializer),
+        element-array-class (Class/forName "[F")]
+    (serializer
+      (write [^Kryo kryo, ^Output out, a]
+        (write-array2d array-serializer, kryo, out, a))
+      (read [^Kryo kryo, ^Input in, clazz]
+        (read-array2d array-serializer, element-array-class, kryo, in)))))
+
+
+(def ^Serializer long2d-serializer
+  (let [array-serializer (new DefaultArraySerializers$LongArraySerializer),
+        element-array-class (Class/forName "[J")]
+    (serializer
+      (write [^Kryo kryo, ^Output out, a]
+        (write-array2d array-serializer, kryo, out, a))
+      (read [^Kryo kryo, ^Input in, clazz]
+        (read-array2d array-serializer, element-array-class, kryo, in)))))
+
+
+(def ^Serializer int2d-serializer
+  (let [array-serializer (new DefaultArraySerializers$IntArraySerializer),
+        element-array-class (Class/forName "[I")]
+    (serializer
+      (write [^Kryo kryo, ^Output out, a]
+        (write-array2d array-serializer, kryo, out, a))
+      (read [^Kryo kryo, ^Input in, clazz]
+        (read-array2d array-serializer, element-array-class, kryo, in)))))
+
+
+(def ^Serializer short2d-serializer
+  (let [array-serializer (new DefaultArraySerializers$ShortArraySerializer),
+        element-array-class (Class/forName "[S")]
+    (serializer
+      (write [^Kryo kryo, ^Output out, a]
+        (write-array2d array-serializer, kryo, out, a))
+      (read [^Kryo kryo, ^Input in, clazz]
+        (read-array2d array-serializer, element-array-class, kryo, in)))))
+
+
+(def ^Serializer byte2d-serializer
+  (let [array-serializer (new DefaultArraySerializers$ByteArraySerializer),
+        element-array-class (Class/forName "[B")]
+    (serializer
+      (write [^Kryo kryo, ^Output out, a]
+        (write-array2d array-serializer, kryo, out, a))
+      (read [^Kryo kryo, ^Input in, clazz]
+        (read-array2d array-serializer, element-array-class, kryo, in)))))
+
+
+(def ^Serializer object2d-serializer
+  (let [array-serializer (new DefaultArraySerializers$ObjectArraySerializer),
+        element-array-class (Class/forName "[Ljava.lang.Object;")]
+    (serializer
+      (write [^Kryo kryo, ^Output out, a]
+        (write-array2d array-serializer, kryo, out, a))
+      (read [^Kryo kryo, ^Input in, clazz]
+        (read-array2d array-serializer, element-array-class, kryo, in)))))
+
+
+(def ^Serializer char2d-serializer
+  (let [array-serializer (new DefaultArraySerializers$CharArraySerializer),
+        element-array-class (Class/forName "[C")]
+    (serializer
+      (write [^Kryo kryo, ^Output out, a]
+        (write-array2d array-serializer, kryo, out, a))
+      (read [^Kryo kryo, ^Input in, clazz]
+        (read-array2d array-serializer, element-array-class, kryo, in)))))
+
+
+(def ^Serializer string2d-serializer
+  (let [array-serializer (new DefaultArraySerializers$StringArraySerializer),
+        element-array-class (Class/forName "[Ljava.lang.String;")]
+    (serializer
+      (write [^Kryo kryo, ^Output out, a]
+        (write-array2d array-serializer, kryo, out, a))
+      (read [^Kryo kryo, ^Input in, clazz]
+        (read-array2d array-serializer, element-array-class, kryo, in)))))
+
 
 (defmacro apply-serializer-to
   [serializer, & classes]
@@ -232,10 +344,10 @@
                 (throw (IllegalArgumentException. "Only a class or a vector [class, id] are allowed!"))))))))
 
 
-(defn+opts clojure-serializers
+(defn clojure-serializers
   "Returns a vector of serializer registrations (class serializer pairs) for the standard datastructures of Clojure.
-  <persistent-metadata>Specifies if the metadata is persisted as well.</persistent-meta>"
-  [| {persistent-metadata true}]
+  Specify via persistent-metadata if the metadata is persisted as well."
+  [persistent-metadata]
   (concat
     ; vectors
     (apply-serializer-to (collection-serializer  [], persistent-metadata)
@@ -289,4 +401,17 @@
 	     DefaultArraySerializers$ObjectArraySerializer,
 	     DefaultArraySerializers$ShortArraySerializer,
 	     DefaultArraySerializers$StringArraySerializer]
-	     (range 24 40))))
+	     (range 24 40))
+    (map
+      (fn [[class-str, serializer], id]
+        (vector (Class/forName class-str), serializer, id))
+      [["[[D" double2d-serializer]
+       ["[[F" float2d-serializer]
+       ["[[J" long2d-serializer]
+       ["[[I" int2d-serializer]
+       ["[[S" short2d-serializer]
+       ["[[B" byte2d-serializer]
+       ["[[C" char2d-serializer]
+       ["[[Ljava.lang.Object;" object2d-serializer]
+       ["[[Ljava.lang.String;" string2d-serializer]]
+      (range 59 68))))

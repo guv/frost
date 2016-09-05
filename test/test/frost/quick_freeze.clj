@@ -10,29 +10,38 @@
   (:require
     [frost.quick-freeze :as qf]
     [clojure.options :refer [defn+opts]]
-    [midje.sweet :refer :all]
     [clojure.test.check :as c]
     (clojure.test.check
       [generators :as gen]
-      [properties :as prop]))
+      [properties :as prop])
+    [clojure.test.check.clojure-test :as test])
   (:import
-    java.util.UUID
-    java.util.regex.Pattern))
+    java.util.UUID))
 
 
 (def ^:const repetitions 200)
 
 
+(defn same-array-values?
+  [get-fn, length-fn, a, b]
+  (let [n (length-fn a)]
+    (loop [i 0]
+      (if (< i n)
+        (if (= (get-fn a i) (get-fn b i))
+          (recur (unchecked-inc i))
+          false)
+        true))))
+
 
 (defn array-roundtrip
-  [type, element-gen]
+  [type, get-fn, length-fn, element-gen]
   (prop/for-all [v (gen/vector element-gen)]
     (let [a (into-array type, v),
           b (-> a qf/quick-byte-freeze qf/quick-byte-defrost)]
       (and
         (=   (class a)   (class b))
-        (= (alength a) (alength b))
-        (every? #(= (aget a %) (aget b %)) (range (alength a)))))))
+        (= (length-fn a) (length-fn b))
+        (same-array-values? get-fn, length-fn, a, b)))))
 
 
 (def short-gen
@@ -44,44 +53,95 @@
 (def long-gen
   (gen/fmap long (gen/choose Long/MIN_VALUE Long/MAX_VALUE)))
 
+(def float-gen
+  (gen/fmap float gen/ratio))
 
-(fact "byte array roundtrip"
-  (c/quick-check repetitions (array-roundtrip Byte/TYPE gen/byte)) => (contains {:result true}))
-
-(fact "short array roundtrip"
-  (c/quick-check repetitions (array-roundtrip Short/TYPE short-gen)) => (contains {:result true}))
-
-(fact "int array roundtrip"
-  (c/quick-check repetitions (array-roundtrip Integer/TYPE int-gen)) => (contains {:result true}))
-
-(fact "long array roundtrip"
-  (c/quick-check repetitions (array-roundtrip Long/TYPE long-gen)) => (contains {:result true}))
+(def double-gen
+  (gen/fmap double gen/ratio))
 
 
+(test/defspec byte-array-roundtrip repetitions
+  (array-roundtrip Byte/TYPE, #(aget ^bytes %1 %2), #(alength ^bytes %1), gen/byte))
+
+(test/defspec short-array-roundtrip repetitions
+  (array-roundtrip Short/TYPE, #(aget ^shorts %1 %2), #(alength ^shorts %1), short-gen))
+
+(test/defspec int-array-roundtrip repetitions
+  (array-roundtrip Integer/TYPE, #(aget ^ints %1 %2), #(alength ^ints %1), int-gen))
+
+(test/defspec long-array-roundtrip repetitions
+  (array-roundtrip Long/TYPE, #(aget ^longs %1 %2), #(alength ^longs %1), long-gen))
+
+(test/defspec float-array-roundtrip repetitions
+  (array-roundtrip Float/TYPE, #(aget ^floats %1 %2), #(alength ^floats %1), float-gen))
+
+(test/defspec double-array-roundtrip repetitions
+  (array-roundtrip Double/TYPE, #(aget ^doubles %1 %2), #(alength ^doubles %1), double-gen))
+
+
+
+(defn same-array2d-values?
+  [get-fn, length-fn, ^objects a, ^objects b]
+  (let [n (alength a)]
+    (loop [i 0]
+      (if (< i n)
+        (let [a_i (aget a i),
+              b_i (aget b i)]
+          (if (and
+                (= (length-fn a_i) (length-fn b_i))
+                (same-array-values? get-fn, length-fn, a_i, b_i))
+            (recur (unchecked-inc i))
+            false))
+        true))))
+
+
+(defn array2d-roundtrip
+  [type, get-fn, length-fn, element-gen]
+  (prop/for-all [v (gen/vector (gen/vector element-gen))]
+    (let [^objects a (into-array (mapv #(into-array type, %) v)),
+          ^objects b (-> a qf/quick-byte-freeze qf/quick-byte-defrost)]
+      (and
+        (=   (class a)   (class b))
+        (= (alength a) (alength b))
+        (same-array2d-values? get-fn, length-fn, a, b)))))
+
+
+(test/defspec byte-array2d-roundtrip repetitions
+  (array2d-roundtrip Byte/TYPE, #(aget ^bytes %1 %2), #(alength ^bytes %1), gen/byte))
+
+(test/defspec short-array2d-roundtrip repetitions
+  (array2d-roundtrip Short/TYPE, #(aget ^shorts %1 %2), #(alength ^shorts %1), short-gen))
+
+(test/defspec int-array2d-roundtrip repetitions
+  (array2d-roundtrip Integer/TYPE, #(aget ^ints %1 %2), #(alength ^ints %1), int-gen))
+
+(test/defspec long-array2d-roundtrip repetitions
+  (array2d-roundtrip Long/TYPE, #(aget ^longs %1 %2), #(alength ^longs %1), long-gen))
+
+(test/defspec float-array2d-roundtrip repetitions
+  (array2d-roundtrip Float/TYPE, #(aget ^floats %1 %2), #(alength ^floats %1), float-gen))
+
+(test/defspec double-array2d-roundtrip repetitions
+  (array2d-roundtrip Double/TYPE, #(aget ^doubles %1 %2), #(alength ^doubles %1), double-gen))
 
 
 (def uuid-gen
   (gen/fmap #(UUID. (first %) (second %)) (gen/vector long-gen 2)))
 
-(def uuid-roundtrip
+
+(test/defspec uuid-roundtrip repetitions
   (prop/for-all [id uuid-gen]
     (-> id qf/quick-byte-freeze qf/quick-byte-defrost (= id))))
-
-(fact "UUID roundtrip"
-  (c/quick-check repetitions uuid-roundtrip) => (contains {:result true}))
-
 
 
 
 (def set-any-gen
   (gen/fmap set (gen/vector gen/simple-type)))
 
-(def set-roundtrip
+
+(test/defspec set-roundtrip repetitions
   (prop/for-all [s set-any-gen]
     (-> s qf/quick-byte-freeze qf/quick-byte-defrost (= s))))
-
-(fact "set roundtrip"
-  (c/quick-check repetitions set-roundtrip) => (contains {:result true}))
 
 
 
@@ -94,13 +154,13 @@
     (-> x (qf/quick-byte-freeze options) (qf/quick-byte-defrost options) (= x))))
 
 
-(fact "roundtrip anything generated by gen/any"
-  (c/quick-check repetitions (roundtrip-anything-property) :max-size 100) => (contains {:result true}))
+(test/defspec roundtrip-anything {:num-tests repetitions}
+  (roundtrip-anything-property))
 
 
-(fact "roundtrip anything generated by gen/any with snappy compression"
-  (c/quick-check repetitions (roundtrip-anything-property :compressed true, :compression-algorithm :snappy) :max-size 100) => (contains {:result true}))
+(test/defspec roundtrip-anything-snappy-compression {:num-tests repetitions, :max-size 100}
+  (roundtrip-anything-property :compressed true, :compression-algorithm :snappy))
 
 
-(fact "roundtrip anything generated by gen/any with GZIP compression"
-  (c/quick-check repetitions (roundtrip-anything-property :compressed true, :compression-algorithm :gzip) :max-size 100) => (contains {:result true}))
+(test/defspec roundtrip-anything-gzip-compression {:num-tests repetitions, :max-size 100}
+  (roundtrip-anything-property :compressed true, :compression-algorithm :gzip))

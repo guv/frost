@@ -107,6 +107,16 @@
       (f/defrost-iterate fd, process-fn, filter-pred))))
 
 
+(defn+opts quick-file-reduce
+  "Performs a reduce on the given file.
+  <init-value>Optional, initial value passed to the reduce operation.</>"
+  [filedesc, f | {init-value nil} :as options]
+  (with-open [fd (f/create-defroster filedesc, options)]
+    (if init-value
+      (reduce f init-value fd)
+      (reduce f fd))))
+
+
 (defn+opts quick-file-header
   "Reads the file header of the file with the given file description.
   The file description can be anything that clojure.java.io/input-stream can handle."
@@ -121,3 +131,47 @@
   [filedesc | :as options]
   (with-open [ff (f/create-defroster filedesc, options)]
     (f/file-info ff)))
+
+
+(defn wrap-take
+  [write-fn, n]
+  (let [take-cnt (atom 0)]
+    (fn do-take [_, data]
+      (let [cnt (swap! take-cnt inc)]
+        ; write data aslong as not enough is written
+        (if (<= cnt n)
+          (write-fn nil, data)
+          (reduced nil))))))
+
+
+(defn wrap-drop
+  [write-fn, n]
+  (let [drop-cnt (atom 0)]
+    (fn do-drop [_, data]
+      (let [cnt (swap! drop-cnt inc)]
+        ; write data aslong as not enough is written
+        (when (> cnt n)
+          (write-fn nil, data))))))
+
+
+(defn wrap-filter
+  [write-fn, pred?]
+  (fn do-filter [_, data]
+    (when (pred? data)
+      (write-fn nil, data))))
+
+
+(defn+opts quick-file-copy
+  "Copy the given source file to the specified destination file.
+  <take>Copy only the specified number of entries (starting at the first not-dropped entry).</>
+  <drop>Skip the specified number of entries starting at the first.</>
+  <filter>Copy only entries matching the given predicate.</>"
+  [destination-file, source-file | {filter nil, take nil, drop nil} :as options]
+  (with-open [dest (f/create-freezer destination-file, options)
+              src  (f/create-defroster source-file, options)]
+    (let [freeze-data (fn freeze-data [_, data] (f/freeze dest, data)),
+          process-fn (cond-> freeze-data
+                       take (wrap-take take)
+                       filter (wrap-filter filter)
+                       drop (wrap-drop drop))]
+      (reduce process-fn nil src))))

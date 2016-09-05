@@ -9,6 +9,7 @@
 (ns frost.file-freezer
   (:require
     [clojure.java.io :as io]
+    [clojure.core.protocols :as p]
     [clojure.options :refer [defn+opts, defn+opts-, ->option-map]]
     [frost.util :refer [conditional-wrap]]
     [frost.version :as v]
@@ -65,7 +66,7 @@
 
 
 (def ^:dynamic *header-buffer-min* 1024)
-(def ^:dynamic *header-buffer-max* 102400)
+(def ^:dynamic *header-buffer-max* (* 1024 1024))
 
 (defn header->bytes
   [header]
@@ -74,9 +75,33 @@
     (.writeClassAndObject kryo, byte-output, header)
     (.toBytes byte-output)))
 
+
+(defn writable-serializer-information
+  [header]
+  (update-in header [:additional-serializers]
+    #(mapv
+       (fn [[class, serializer, id? :as spec]]
+         (cond-> [(.getName ^Class class), serializer]
+           id? (conj id?)))
+       %)))
+
+
+(defn usable-serializer-information
+  [header]
+  (update-in header [:additional-serializers]
+    #(mapv
+       (fn [[class-name, serializer, id?]]
+         (cond-> [(Class/forName class-name), serializer]
+           id? (conj id?)))
+       %)))
+
+
 (defn write-header
   [^OutputStream output-stream, header]
-  (let [header-bytes (header->bytes (assoc header :frost-version (v/current-version))),
+  (let [header (-> header
+                 (assoc :frost-version (v/current-version))
+                 (cond-> (:additional-serializers header) writable-serializer-information))
+        header-bytes (header->bytes header),
         header-length (count header-bytes),        
         data-output (DataOutputStream. output-stream)]
     (.writeInt data-output, header-length)
@@ -87,8 +112,10 @@
 (defn bytes->header
   [bytes]
   (let [kryo (kryo/default-kryo :registration-required true),
-        byte-input (Input. ^bytes bytes)]
-    (.readClassAndObject kryo, byte-input)))
+        byte-input (Input. ^bytes bytes)
+        header (.readClassAndObject kryo, byte-input)]
+    (cond-> header (:additional-serializers header) usable-serializer-information)))
+
 
 (defn read-header
   [^InputStream input-stream]
@@ -106,13 +133,13 @@
   <file-info>Specifies addition information about the file that is stored in the header of the file.</>
   <locking>Determines whether locking should be use to make the file freezer thread-safe.</>
   "
-  [filename | {compressed true, file-info nil, locking true} :as options]
+  [filedesc | {compressed true, file-info nil, locking true} :as options]
   (let [; create file
-        file-out (FileOutputStream. ^String filename, false),
+        file-out (FileOutputStream. (io/file filedesc), false),
         ; header without metadata
         header (with-meta 
                  (select-keys options 
-                   [:compressed :no-wrap :compression-algorithm :registration-required :default-serializers :persistent-metadata :file-info]) 
+                   [:compressed :no-wrap :compression-algorithm :registration-required :default-serializers :additional-serializers :persistent-metadata :file-info]) 
                  nil)
         ; write header with options
         _ (write-header file-out, header)
@@ -120,7 +147,7 @@
         file-out (cond-> file-out compressed (compress/wrap-compression options)),
         ; create kryo configured by given parameters
         kryo (kryo/create-specified-kryo options)]
-      (Freezer. kryo, (Output. ^OutputStream file-out), filename, file-info, (dissoc header :file-info), locking)))
+      (Freezer. kryo, (Output. ^OutputStream file-out), filedesc, file-info, (dissoc header :file-info), locking)))
 
 
 
@@ -204,6 +231,25 @@
                 (f obj)
                 (recur (unchecked-inc element-count)))
               (recur element-count))))))))
+
+
+(extend-protocol p/CollReduce
+
+  Defroster
+
+  (coll-reduce
+    ([defroster, f]
+     (if-let [init (try (defrost defroster) (catch KryoException e nil))]
+       (p/coll-reduce defroster, f, init)
+       (f)))
+    ([defroster, f, init]
+     (loop [result init]
+       (if-let [value (try (defrost defroster) (catch KryoException e nil))]
+         (let [new-result (f result value)]
+           (if (reduced? new-result)
+             new-result
+             (recur new-result)))
+         result)))))
 
 
 (defn+opts ^Defroster create-defroster

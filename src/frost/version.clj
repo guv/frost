@@ -8,6 +8,6 @@
 
 (ns frost.version)
 
-(def ^:private ^:const version "0.5.0")
+(def ^:private ^:const version "0.5.2")
 
 (defn ^String current-version [] version)

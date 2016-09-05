@@ -10,9 +10,11 @@
   (:require
     [clojure.options :refer [defn+opts]]
     [frost.serializers :as serializers]
-    [frost.analysis :as analysis])
+    [frost.analysis :as analysis]
+    [frost.util :as u])
   (:import 
     (com.esotericsoftware.kryo Kryo Serializer)))
+
 
 
 (defn+opts ^Kryo register-serializers
@@ -20,10 +22,15 @@
   The format for the serializers list is supposed to look like:
   [[Class1 serializer1 id1?] [Class2 serializer2 id2?] ...]
   <analyze>Determines if the serializers supports analysis via frost.analysis.</>"
-  [^Kryo kryo, serializers | {analyze false}]
+  [^Kryo kryo, serializers | {persistent-meta-data true, analyze false}]
   (doseq [[^Class clazz, ^Serializer serializer, id :as all] serializers]
     (if serializer
-      (let [serializer (if analyze (analysis/analysis-serializer serializer) serializer)] 
+      (let [serializer (if (symbol? serializer)
+                         (if-let [serializer-constructor (u/resolve-fn serializer)]
+                           (serializer-constructor persistent-meta-data)
+                           (u/illegal-argument "Function %s could not be resolved!" serializer))
+                         serializer)
+            serializer (if analyze (analysis/analysis-serializer serializer) serializer)] 
         (if id
           ; when serializer and id are given
 	        (.register kryo clazz serializer (int id))
@@ -36,11 +43,12 @@
 
 
 (defn+opts ^Kryo register-default-serializers
-  "Register the defaul serializers for Java and Clojure data at the given kryo instance."
-  [^Kryo kryo | :as options]
+  "Register the defaul serializers for Java and Clojure data at the given kryo instance.
+  <persistent-metadata>Specifies if the metadata is persisted as well.</persistent-meta>"
+  [^Kryo kryo | {persistent-meta-data true} :as options]
   (doto kryo
     (register-serializers serializers/java-serializers, options)
-    (register-serializers (serializers/clojure-serializers options), options)))
+    (register-serializers (serializers/clojure-serializers persistent-meta-data), options)))
 
 
 (defn ^Kryo create-kryo
