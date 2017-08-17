@@ -22,11 +22,10 @@
                  ; keep kryo 2.17 since there is a bug in the "reference instead of copy" implementation in later kryo (TODO: check most recent version)
                  [com.esotericsoftware.kryo/kryo "2.17"]
                  ; alternative fast compression
-                 [org.xerial.snappy/snappy-java "1.0.5"]
-                 ; gui for analysis namespace
-                 [clj-gui "0.3.4"]]
+                 [org.xerial.snappy/snappy-java "1.0.5"]]
   :profiles
-  {:dev {:dependencies [[clj-debug "0.7.5"]
-                        [org.clojure/test.check "0.6.2"]]}
+  {:dev {:dependencies [[clj-debug "0.7.6"]
+                        [org.clojure/test.check "0.6.2"]
+                        [frost-analysis "0.1.1"]]}
    :reflection {:warn-on-reflection true}}
 )

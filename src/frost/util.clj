@@ -31,7 +31,7 @@
 
 (defn illegal-argument
   [fmt, & args]
-  (throw (IllegalArgumentException. (apply format fmt args))))
+  (throw (IllegalArgumentException. ^String (apply format fmt args))))
 
 
 (defn resolve-fn
@@ -57,3 +57,10 @@
         (illegal-argument "No function identifier given (argument is nil)!")
       :else
         (illegal-argument "resolve-fn expects a symbol or a string"))))
+
+
+(defn printf-err
+  [msg-fmt, & args]
+  (let [msg (apply format msg-fmt args)]
+    (binding [*out* *err*]
+      (println msg))))

@@ -10,11 +10,32 @@
   (:require
     [clojure.options :refer [defn+opts]]
     [frost.serializers :as serializers]
-    [frost.analysis :as analysis]
     [frost.util :as u])
   (:import 
     (com.esotericsoftware.kryo Kryo Serializer)))
 
+
+
+(defn try-resolve-analysis-serializer
+  []
+  (-> 'frost.analysis/analysis-serializer resolve var-get))
+
+
+(defn maybe-add-analysis
+  "Wraps the given serializer in an anylsis serializer provided that the library frost.analysis is available."
+  ^Serializer [^Serializer serializer]
+  (if-let [wrap-analysis (try
+                           (if-let [wrap-analysis (try-resolve-analysis-serializer)]
+                             wrap-analysis
+                             (do
+                               (require 'frost.analysis)
+                               (try-resolve-analysis-serializer)))
+                           (catch Throwable _
+                             nil))]
+    (wrap-analysis serializer)
+    (do
+      (u/printf-err "Given :analyze true but namespace frost.analysis could not be loaded or function frost.analysis/analysis-serializer could not be resolved.\nHave you added frost-analysis as dependency?")
+      serializer)))
 
 
 (defn+opts ^Kryo register-serializers
@@ -25,12 +46,12 @@
   [^Kryo kryo, serializers | {persistent-meta-data true, analyze false}]
   (doseq [[^Class clazz, ^Serializer serializer, id :as all] serializers]
     (if serializer
-      (let [serializer (if (symbol? serializer)
-                         (if-let [serializer-constructor (u/resolve-fn serializer)]
-                           (serializer-constructor persistent-meta-data)
-                           (u/illegal-argument "Function %s could not be resolved!" serializer))
-                         serializer)
-            serializer (if analyze (analysis/analysis-serializer serializer) serializer)] 
+      (let [^Serializer serializer (if (symbol? serializer)
+                                     (if-let [serializer-constructor (u/resolve-fn serializer)]
+                                       (serializer-constructor persistent-meta-data)
+                                       (u/illegal-argument "Function %s could not be resolved!" serializer))
+                                     serializer)
+            serializer (if analyze (maybe-add-analysis serializer) serializer)]
         (if id
           ; when serializer and id are given
 	        (.register kryo clazz serializer (int id))

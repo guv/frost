@@ -14,7 +14,7 @@ This library has been used in internal projects for several years. API changes a
 Add the following to your dependency vector in your project.clj:
 
 ```clojure
-[frost "0.5.2"]
+[frost "0.5.3"]
 ```
 
 Latest on [clojars.org](http://clojars.org):
@@ -184,9 +184,14 @@ The namespace ```frost.file-freezer``` offers the types ```Freezer``` and ```Def
 incrementally write to or read from a file.
 These types are the underlying implementation of the functions in the namespace ```frost.quick-freeze```.
 
+### Analysis
+
+The library [frost-analysis](https://github.com/guv/frost-analysis) can be used to get statistics
+of what has been written during serialization.
+
 
 ## License
 
-Copyright © 2014-2016 Gunnar Völkel
+Copyright © 2014-2017 Gunnar Völkel
 
-Distributed under the Eclipse Public License.
+Distributed under the Eclipse Public License version 1.0
