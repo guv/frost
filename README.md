@@ -15,7 +15,7 @@ This library has been used in internal projects for several years. API changes a
 
 Add the following to your dependency vector in your project.clj:
 
-![Version](https://clojars.org/frost/frost/latest-version.svg)
+[![Version](https://clojars.org/frost/frost/latest-version.svg)](https://clojars.org/frost)
 
 ## Quickstart
 
@@ -188,6 +188,6 @@ of what has been written during serialization.
 
 ## License
 
-Copyright © 2014-2017 Gunnar Völkel
+Copyright © 2014-2019 Gunnar Völkel
 
 Distributed under the Eclipse Public License version 1.0
