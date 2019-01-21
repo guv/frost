@@ -256,15 +256,16 @@
   "Creates a file defroster for the given file description to read data from this file.
   The file description can be anything that clojure.java.io/input-stream can handle.
   The file defroster can be created in a thread-safe or non-thread-safe mode.
-  <locking>Determines whether locking should be use to make the file freezer thread-safe.</>"
-  [filedesc | {locking true}]
+  <locking>Determines whether locking should be use to make the file freezer thread-safe.</>
+  <resolve-error-handler>If a serializer constructor cannot be resolved, this function will be called to provide an alternative serializer constructor.</>"
+  [filedesc | {locking true, resolve-error-handler nil}]
   (let [; open file
         file-in (io/input-stream filedesc),        
         ; read header
         {:keys [compressed, file-info, frost-version] :as header} (read-header file-in),
         options (->option-map header),
         ; create kryo configured by given parameters
-        kryo (kryo/create-specified-kryo options),
+        kryo (kryo/create-specified-kryo :resolve-error-handler resolve-error-handler, options),
         ; activate compression if specified
         file-in (cond-> file-in
                   (and compressed frost-version) (compress/wrap-compression options)

@@ -11,7 +11,7 @@
     [clojure.options :refer [defn+opts]]
     [frost.serializers :as serializers]
     [frost.util :as u])
-  (:import 
+  (:import
     (com.esotericsoftware.kryo Kryo Serializer)))
 
 
@@ -38,25 +38,51 @@
       serializer)))
 
 
+(defn resolve-serializer
+  [serializer-symbol, resolve-error-handler]
+  (let [f (try
+            (u/resolve-fn serializer-symbol)
+            (catch Throwable t
+              t))]
+    (if (or (nil? f) (instance? Exception f))
+      (if-let [g (when resolve-error-handler (resolve-error-handler serializer-symbol))]
+        g
+        (if (nil? f)
+          (u/illegal-argument "Function %s could not be resolved!" serializer-symbol)
+          (throw
+            (RuntimeException.
+              (format "Serializer \"%s\" could not be resolved!" serializer-symbol)
+              f))))
+      f)))
+
+
 (defn+opts ^Kryo register-serializers
   "Registers the given serializers at the given kryo instance.
   The format for the serializers list is supposed to look like:
   [[Class1 serializer1 id1?] [Class2 serializer2 id2?] ...]
-  <analyze>Determines if the serializers supports analysis via frost.analysis.</>"
-  [^Kryo kryo, serializers | {persistent-meta-data true, analyze false}]
+  <analyze>Determines if the serializers supports analysis via frost.analysis.</>
+  <resolve-error-handler>If a serializer constructor cannot be resolved, this function will be called to provide an alternative serializer constructor.</>"
+  [^Kryo kryo, serializers | {persistent-meta-data true, analyze false, resolve-error-handler nil}]
   (doseq [[^Class clazz, ^Serializer serializer, id :as all] serializers]
     (if serializer
-      (let [^Serializer serializer (if (symbol? serializer)
-                                     (if-let [serializer-constructor (u/resolve-fn serializer)]
-                                       (serializer-constructor persistent-meta-data)
-                                       (u/illegal-argument "Function %s could not be resolved!" serializer))
-                                     serializer)
+      (let [^Serializer serializer (cond
+                                     (symbol? serializer)
+                                     (let [serializer-constructor (resolve-serializer serializer, resolve-error-handler)]
+                                       (serializer-constructor persistent-meta-data))
+
+                                     (instance? Serializer serializer)
+                                     serializer
+
+                                     :else
+                                     (u/illegal-argument
+                                       "Serializer for class \"%s\" must be either a Serializer instance or a symbol refering to a constructor function!"
+                                       (.getCanonicalName clazz)))
             serializer (if analyze (maybe-add-analysis serializer) serializer)]
         (if id
           ; when serializer and id are given
-	        (.register kryo clazz serializer (int id))
-	        ; when only a serializer is given
-	        (.register kryo clazz serializer)))
+          (.register kryo clazz serializer (int id))
+          ; when only a serializer is given
+          (.register kryo clazz serializer)))
       ; when only a class is given
       (.register kryo clazz)))
   kryo)
