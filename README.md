@@ -1,5 +1,7 @@
 # frost
 
+[![Clojars Project](https://img.shields.io/clojars/v/frost.svg)](https://clojars.org/frost)
+
 **frost** is a library for binary serialization of Clojure data structures.
 It is built on top of the [kryo](http://github.com/EsotericSoftware/kryo) library.
 The main goal of the library is to provide an easy method to binary serialization of Clojure data to byte arrays and files.
@@ -12,12 +14,6 @@ This library has been used in internal projects for several years. API changes a
 ## Install
 
 Add the following to your dependency vector in your project.clj:
-
-```clojure
-[frost "0.5.3"]
-```
-
-Latest on [clojars.org](http://clojars.org):
 
 ![Version](https://clojars.org/frost/frost/latest-version.svg)
 
